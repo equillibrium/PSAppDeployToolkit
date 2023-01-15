@@ -114,12 +114,16 @@ Try {
     [String]$appLang = 'EN'
     [String]$appRevision = '01'
     [String]$appScriptVersion = '1.0.0'
-    [String]$appScriptDate = 'XX/XX/20XX'
-    [String]$appScriptAuthor = '<author name>'
+    [String]$appScriptDate = '15/01/2023'
+    [String]$appScriptAuthor = 'myltsev_a'
     ##*===============================================
     ## Variables: Install Titles (Only set here to override defaults set by the toolkit)
     [String]$installName = ''
     [String]$installTitle = ''
+    ##*===============================================
+    ## Variables: TASS Speciefic
+	[datetime]$TASSScriptStartTime = (Get-Date).AddSeconds(-5)
+
 
     ##* Do not modify section below
     #region DoNotModify
@@ -182,7 +186,7 @@ Try {
         [String]$installPhase = 'Pre-Installation'
 
         ## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
-        Show-InstallationWelcome -CloseApps 'iexplore' -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
+        Show-InstallationWelcome -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
 
         ## Show Progress Message (with the default message)
         Show-InstallationProgress
@@ -297,6 +301,34 @@ Try {
 
 
     }
+
+    ##*===============================================
+	##* TASS Speciefic Add-on - Post actions
+	##*===============================================
+
+	## Pull  last 25 Application Event Log entries that contains $appName in the message
+    if ($eventlog = (Get-EventLog -LogName Application -Newest 25 -Source msiinstaller | Where-Object {$_.Message -like "*$($appName.replace(" ","*"))*"})) {
+        Write-Log -Message "Последние 25 записей из Application EventLog:"
+        $eventlog.message | ForEach-Object { Write-Log $_ }
+    }
+
+    # Invoke SCCM HW Inv Schedule to update App Inventory
+    Invoke-SCCMTask -ScheduleID HardwareInventory -Verbose | Write-Log
+
+    # Pull logs to SCCM Share if it's available
+    $LogFileShare = "\\msk-sccm-ss02\logs\PSADT"
+
+    if (Test-Connection -ComputerName "msk-sccm-ss02.corp.tass.ru" -Count 4 -ErrorAction SilentlyContinue) {
+        $LogsFileShareFolder = $LogFileShare+"\$env:COMPUTERNAME"
+
+        New-Folder -Path $LogFileShare -Verbose
+        
+        Write-Log -Message "Копирование логов в папку $LogsFileShareFolder`:"
+		$CopyLogs = (Get-ChildItem $configToolkitLogDir | Where-Object LastWriteTime -ge $TASSScriptStartTime).FullName
+        $CopyLogs | ForEach-Object {Copy-File -Path $_ -Destination $LogsFileShareFolder -Recurse -Verbose}
+    }
+
+
     ##*===============================================
     ##* END SCRIPT BODY
     ##*===============================================

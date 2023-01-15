@@ -30,7 +30,7 @@
         <!-- Path used to store temporary Toolkit files (with PSAppDeployToolkit as subdirectory), e.g. cache toolkit for cleaning up blocked apps. Normally you don't want this set to a path that is writable by regular users, this might lead to a security vulnerability. The default Temp variable for the LocalSystem account is C:\Windows\Temp. -->
         <Toolkit_RegPath>HKLM:\SOFTWARE</Toolkit_RegPath>
         <!-- Registry key used to store toolkit information (with PSAppDeployToolkit as child registry key), e.g. deferral history. -->
-        <Toolkit_LogPath>$envWinDir\Logs\Software</Toolkit_LogPath>
+        <Toolkit_LogPath>$envProgramData\Logs\Software</Toolkit_LogPath>
         <!-- Log path used for Toolkit logging. -->
         <Toolkit_TempPathNoAdminRights>$envTemp</Toolkit_TempPathNoAdminRights>
         <!-- Same as TempPath but used when RequireAdmin is False. -->
@@ -68,7 +68,7 @@
     <MSI_Options>
         <MSI_LoggingOptions>/L*v</MSI_LoggingOptions>
         <!-- Logging level used for MSI logging. -->
-        <MSI_LogPath>$envWinDir\Logs\Software</MSI_LogPath>
+        <MSI_LogPath>$envProgramData\Logs\Software</MSI_LogPath>
         <!-- Log path used for MSI logging. -->
         <MSI_LogPathNoAdminRights>$envProgramData\Logs\Software</MSI_LogPathNoAdminRights>
         <!-- Log path used for MSI logging when RequireAdmin is False. -->
@@ -102,7 +102,7 @@
 			 HU 				Hungarian		|		CZ					Czech
 			 FI					Finnish			|
 		-->
-        <ShowBalloonNotifications>True</ShowBalloonNotifications>
+        <ShowBalloonNotifications>False</ShowBalloonNotifications>
         <!-- [True/False] - Used to turn automatic balloon notifications on or off. -->
         <InstallationUI_Timeout>6900</InstallationUI_Timeout>
         <!-- Time in seconds to automatically timeout installation dialogs. Default is 1 hour and 55 minutes so that dialogs timeout before SCCM times out. -->
