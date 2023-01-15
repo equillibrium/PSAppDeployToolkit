@@ -107,16 +107,15 @@ Try {
     ##* VARIABLE DECLARATION
     ##*===============================================
     ## Variables: Application
-	[string]$appVendor = ''
-	[string]$appName = ''
-	[string]$appVersion = ''
-	[string]$appArch = ''
-	[string]$appLang = 'EN'
-	[string]$appRevision = '01'
-	[string]$appScriptVersion = '1.0.0'
-	[string]$appScriptDate = 'XX/XX/20XX'
-	[string]$appScriptAuthor = '<author name>'
-	[datetime]$TASSScriptStartTime = (Get-Date).AddSeconds(-5)
+    [String]$appVendor = ''
+    [String]$appName = ''
+    [String]$appVersion = ''
+    [String]$appArch = ''
+    [String]$appLang = 'EN'
+    [String]$appRevision = '01'
+    [String]$appScriptVersion = '1.0.0'
+    [String]$appScriptDate = 'XX/XX/20XX'
+    [String]$appScriptAuthor = '<author name>'
     ##*===============================================
     ## Variables: Install Titles (Only set here to override defaults set by the toolkit)
     [String]$installName = ''
@@ -301,35 +300,6 @@ Try {
     ##*===============================================
     ##* END SCRIPT BODY
     ##*===============================================
-
-	##*===============================================
-	##* TASS Speciefic Add-on - Post-script actions
-	##*===============================================
-
-	## Pull  last 25 Application Event Log entries that contains $appName in the message
-    if ($eventlog = (Get-EventLog -LogName Application -Newest 25 -Source msiinstaller | Where-Object {$_.Message -like "*$($appName.replace(" ","*"))*"})) {
-        Write-Log -Message "Последние 25 записей из Application EventLog:"
-        $eventlog.message | ForEach-Object { Write-Log $_ }
-    }
-
-    # Invoke SCCM HW Inv Schedule to update App Inventory
-    Invoke-SCCMTask -ScheduleID HardwareInventory -Verbose | Write-Log
-
-    # Pull logs to SCCM Share if it's available
-    $LogFileShare = "\\msk-sccm-ss02\logs\PSADT"
-
-    if (Test-Connection -ComputerName "msk-sccm-ss02.corp.tass.ru" -Count 4 -ErrorAction SilentlyContinue) {
-        $LogsFileShareFolder = $LogFileShare+"\$env:COMPUTERNAME"
-        
-        if (!(Test-Path $LogsFileShareFolder)) {
-            New-Item -Path $LogsFileShareFolder -ItemType Directory
-        }
-
-        Write-Log -Message "Копирование логов в папку $LogsFileShareFolder`:"
-		$CopyLogs = (Get-ChildItem $configToolkitLogDir | Where-Object LastWriteTime -ge $TASSScriptStartTime).FullName
-        $CopyLogs | ForEach-Object { Copy-Item -Path $_ -Destination "$LogsFileShareFolder" -Force -Recurse -Verbose *>&1 | Out-String | Write-Log }
-    }
-
 
     ## Call the Exit-Script function to perform final cleanup operations
     Exit-Script -ExitCode $mainExitCode
