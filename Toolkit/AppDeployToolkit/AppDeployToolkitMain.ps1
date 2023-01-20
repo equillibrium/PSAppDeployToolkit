@@ -107,9 +107,9 @@ Param (
 [String]$appDeployMainScriptFriendlyName = 'App Deploy Toolkit Main'
 
 ## Variables: Script Info
-[Version]$appDeployMainScriptVersion = [Version]'3.9.0'
+[Version]$appDeployMainScriptVersion = [Version]'3.9.1'
 [Version]$appDeployMainScriptMinimumConfigVersion = [Version]'3.9.0'
-[String]$appDeployMainScriptDate = '10/01/2023'
+[String]$appDeployMainScriptDate = '20/01/2023'
 [Hashtable]$appDeployMainScriptParameters = $PSBoundParameters
 
 ## Variables: Datetime and Culture
@@ -552,6 +552,10 @@ If ($configToolkitRequireAdmin -eq $false) {
 [String]$dirFiles = Join-Path -Path $scriptParentPath -ChildPath 'Files'
 [String]$dirSupportFiles = Join-Path -Path $scriptParentPath -ChildPath 'SupportFiles'
 [String]$dirAppDeployTemp = Join-Path -Path $configToolkitTempPath -ChildPath $appDeployToolkitName
+
+If (-not (Test-Path -LiteralPath $dirAppDeployTemp -PathType 'Container' -ErrorAction 'SilentlyContinue')) {
+    New-Item -Path $dirAppDeployTemp -ItemType 'Directory' -Force -ErrorAction 'SilentlyContinue'
+}
 
 ## Set the deployment type to "Install" if it has not been specified
 If (-not $deploymentType) {
@@ -2948,9 +2952,10 @@ Returns a PSObject with information about an installed application
 Get-InstalledApplication -Name 'Adobe Flash'
 
 .EXAMPLE
-
-Get-InstalledApplication -ProductCode '{1AD147D0-BE0E-3D6C-AC11-64F6DC4163F1}'
-
+	Get-InstalledApplication -ProductCode '{1AD147D0-BE0E-3D6C-AC11-64F6DC4163F1}'
+.Outputs
+	For every detected matching Application the Function puts out a custom Object containing the following Properties:
+	DisplayName, DisplayVersion, InstallDate, Publisher, Is64BitApplication, ProductCode, InstallLocation, UninstallSubkey, UninstallString, InstallSource.
 .NOTES
 
 .LINK
@@ -3585,6 +3590,7 @@ https://psappdeploytoolkit.com
 
         If (($IsMsiInstalled) -and ($Action -eq 'Install')) {
             Write-Log -Message "The MSI is already installed on this system. Skipping action [$Action]..." -Source ${CmdletName}
+            [PSObject]$ExecuteResults = @{ ExitCode = 1638; StdOut = 0; StdErr = '' }
         }
         ElseIf (((-not $IsMsiInstalled) -and ($Action -eq 'Install')) -or ($IsMsiInstalled)) {
             Write-Log -Message "Executing MSI action [$Action]..." -Source ${CmdletName}
@@ -3617,12 +3623,7 @@ https://psappdeploytoolkit.com
 
             #  Call the Execute-Process function
             If ($PassThru) {
-                If (($Action -eq 'Install') -and ($IsMsiInstalled)) {
-                    [PSObject]$ExecuteResults = @{ ExitCode = 0; StdOut = 0; StdErr = '' }
-                }
-                Else {
-                    [PSObject]$ExecuteResults = Execute-Process @ExecuteProcessSplat
-                }
+                [PSObject]$ExecuteResults = Execute-Process @ExecuteProcessSplat 
             }
             Else {
                 Execute-Process @ExecuteProcessSplat
@@ -7481,6 +7482,8 @@ https://psappdeploytoolkit.com
             $executeProcessAsUserScript | Out-File -FilePath "$executeAsUserTempPath\$($schTaskName).vbs" -Force -Encoding 'Default' -ErrorAction 'SilentlyContinue'
             $Path = "$envWinDir\System32\wscript.exe"
             $Parameters = "`"$executeAsUserTempPath\$($schTaskName).vbs`""
+            $EscapedPath = [System.Security.SecurityElement]::Escape($Path)
+            $EscapedParameters = [System.Security.SecurityElement]::Escape($Parameters)
 
             Try {
                 Set-ItemPermission -Path "$executeAsUserTempPath\$schTaskName.vbs" -User $UserName -Permission 'Read'
@@ -8025,16 +8028,16 @@ https://psappdeploytoolkit.com
         [String]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
         Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
 
-        ## Remove illegal characters from the scheduled task arguments string
-        [Char[]]$invalidScheduledTaskChars = '$', '!', '''', '"', '(', ')', ';', '\', '`', '*', '?', '{', '}', '[', ']', '<', '>', '|', '&', '%', '#', '~', '@', ' '
-        [String]$SchInstallName = $installName
-        ForEach ($invalidChar in $invalidScheduledTaskChars) {
-            [String]$SchInstallName = $SchInstallName -replace [RegEx]::Escape($invalidChar), ''
+		## Remove illegal characters from the scheduled task arguments string
+		[char[]]$invalidScheduledTaskChars = '$', '!', '''', '"', '(', ')', ';', '\', '`', '*', '?', '{', '}', '[', ']', '<', '>', '|', '&', '%', '#', '~', '@', ' '
+		[string]$SchInstallName = $installName
+		ForEach ($invalidChar in $invalidScheduledTaskChars) {
+            [string]$SchInstallName = $SchInstallName -replace [regex]::Escape($invalidChar),'' 
         }
-        [String]$blockExecutionTempPath = Join-Path -Path $dirAppDeployTemp -ChildPath 'BlockExecution'
-        [String]$schTaskUnblockAppsCommand += "-ExecutionPolicy Bypass -NoProfile -NoLogo -WindowStyle Hidden -File `'$blockExecutionTempPath\$scriptFileName`' -CleanupBlockedApps -ReferredInstallName `'$SchInstallName`' -ReferredInstallTitle `'$installTitle`' -ReferredLogName `'$logName`' -AsyncToolkitLaunch"
-        ## Specify the scheduled task configuration in XML format
-        [String]$xmlUnblockAppsSchTask = @"
+		[string]$blockExecutionTempPath = Join-Path -Path $dirAppDeployTemp -ChildPath 'BlockExecution'
+		[string]$schTaskUnblockAppsCommand += "-ExecutionPolicy Bypass -NoProfile -NoLogo -WindowStyle Hidden -File `"$blockExecutionTempPath\$scriptFileName`" -CleanupBlockedApps -ReferredInstallName `"$SchInstallName`" -ReferredInstallTitle `"$installTitle`" -ReferredLogName `"$logName`" -AsyncToolkitLaunch"
+		## Specify the scheduled task configuration in XML format
+		[string]$xmlUnblockAppsSchTask = @"
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 	<RegistrationInfo></RegistrationInfo>
@@ -10406,6 +10409,8 @@ Show-BalloonTip -BalloonTipIcon 'Info' -BalloonTipText 'Installation Started' -B
 
 .NOTES
 
+For Windows 10 OS and above a Toast notification is displayed in place of a balloon tip. The toast notification does not use tte BalloonTipIcon if specified.
+
 .LINK
 
 https://psappdeploytoolkit.com
@@ -10524,15 +10529,50 @@ https://psappdeploytoolkit.com
         }
         Else {
             Write-Log -Message "Displaying toast notification with message [$BalloonTipText]." -Source ${CmdletName}
+            
+            [scriptblock]$toastScriptBlock  = {
+                Param(
+                    [Parameter(Mandatory = $true, Position = 0)]
+                    [ValidateNotNullOrEmpty()]
+                    [String]$BalloonTipText,
+                    [Parameter(Mandatory = $false, Position = 1)]
+                    [ValidateNotNullorEmpty()]
+                    [String]$BalloonTipTitle,                                 
+                    [Parameter(Mandatory = $false, Position = 4)]
+                    [ValidateNotNullorEmpty()]
+                    [String]$AppDeployLogoImage
+                )
+            
+                # Check for required entries in registry for when using Powershell as application for the toast
+                # Register the AppID in the registry for use with the Action Center, if required
+                $regPathNotificationSettings = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings'
+                $toastAppId =  '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
 
-            $toastAppId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
-            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+                # Create the registry entries if they don't exist
+                If (-not (Test-Path -Path "$regPathNotificationSettings\$toastAppId") ) {
+                    $null = New-Item -Path "$regPathNotificationSettings\$toastAppId" -Force
+                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -Value 1 -PropertyType 'DWORD'
+                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'Enabled' -Value 1 -PropertyType 'DWORD'
+                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'SoundFile' -PropertyType 'STRING'
+                }
+                # Make sure the app used with the action center is enabled
+                If ((Get-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -ErrorAction 'SilentlyContinue').ShowInActionCenter -ne '1') {
+                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -Value 1 -PropertyType 'DWORD' -Force
+                }
+                If ((Get-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'Enabled' -ErrorAction 'SilentlyContinue').Enabled -ne '1') {
+                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'Enabled' -Value 1 -PropertyType 'DWORD' -Force
+                }
+                If (!(Get-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'SoundFile' -ErrorAction 'SilentlyContinue')) {
+                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'SoundFile' -PropertyType 'STRING' -Force
+                }
+                
+                [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+                [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
 
-            ## Gets the Template XML so we can manipulate the values
-            $Template = [Windows.UI.Notifications.ToastTemplateType]::ToastImageAndText01
-            [xml] $ToastTemplate = ([Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent($Template).GetXml())
-            [xml] $ToastTemplate = @"
+                ## Gets the Template XML so we can manipulate the values
+                $Template = [Windows.UI.Notifications.ToastTemplateType]::ToastImageAndText01
+                [xml] $ToastTemplate = ([Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent($Template).GetXml())
+                [xml] $ToastTemplate = @"
 <toast launch="app-defined-string">
 	<visual>
 		<binding template="ToastImageAndText02">
@@ -10544,18 +10584,23 @@ https://psappdeploytoolkit.com
 </toast>
 "@
 
-            $ToastXml = New-Object -TypeName Windows.Data.Xml.Dom.XmlDocument
-            $ToastXml.LoadXml($ToastTemplate.OuterXml)
+                $ToastXml = New-Object -TypeName Windows.Data.Xml.Dom.XmlDocument
+                $ToastXml.LoadXml($ToastTemplate.OuterXml)
 
+                $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($toastAppId)
+                $notifier.Show($toastXml)
+  
+            }
 
-            $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($toastAppId)
-            $notifier.Show($toastXml)
-
-            Start-Sleep -Seconds 10 #so Icon is shown properly in Toast
-
+            ## Invoke a separate PowerShell process as the current user passing the script block as a command and associated parameters to display the toast notification in the user context
+            Try {                
+                $executeToastAsUserScript = "$configToolkitTempPath\$($appDeployToolkitName)-ToastNotification.ps1"
+                Set-Content -Path $executeToastAsUserScript -Value $toastScriptBlock -Force
+                Execute-ProcessAsUser -Path "$PSHOME\powershell.exe" -Parameters "-ExecutionPolicy Bypass -NoProfile -NoLogo -WindowStyle Hidden -Command & { & `"$executeToastAsUserScript `'$BalloonTipText`' `'$BalloonTipTitle`' `'$AppDeployLogoImage`'`"; Exit `$LastExitCode }" -Wait
+            }
+            Catch {
+            }
         }
-
-
     }
     End {
         Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -Footer
