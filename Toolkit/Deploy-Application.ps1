@@ -78,7 +78,6 @@ Toolkit Exit Code Ranges:
 https://psappdeploytoolkit.com
 #>
 
-
 [CmdletBinding()]
 Param (
     [Parameter(Mandatory = $false)]
@@ -94,6 +93,7 @@ Param (
     [Parameter(Mandatory = $false)]
     [switch]$DisableLogging = $false
 )
+cd (split-path -parent $MyInvocation.MyCommand.Definition)
 
 Try {
     ## Set the script execution policy for this process
@@ -111,10 +111,10 @@ Try {
     [String]$appName = ''
     [String]$appVersion = ''
     [String]$appArch = ''
-    [String]$appLang = 'EN'
+    [String]$appLang = 'RU'
     [String]$appRevision = '01'
     [String]$appScriptVersion = '1.0.0'
-    [String]$appScriptDate = '15/01/2023'
+    [String]$appScriptDate = 'XX/XX/2023'
     [String]$appScriptAuthor = 'myltsev_a'
     ##*===============================================
     ## Variables: Install Titles (Only set here to override defaults set by the toolkit)
@@ -186,10 +186,10 @@ Try {
         [String]$installPhase = 'Pre-Installation'
 
         ## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
-        Show-InstallationWelcome -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
+        # Show-InstallationWelcome -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
 
         ## Show Progress Message (with the default message)
-        Show-InstallationProgress
+        # Show-InstallationProgress
 
         ## <Perform Pre-Installation tasks here>
 
@@ -220,9 +220,9 @@ Try {
         ## <Perform Post-Installation tasks here>
 
         ## Display a message at the end of the install
-        If (-not $useDefaultMsi) {
-            Show-InstallationPrompt -Message 'You can customize text to appear at the end of an install or remove it completely for unattended installations.' -ButtonRightText 'OK' -Icon Information -NoWait
-        }
+        # If (-not $useDefaultMsi) {
+        #    Show-InstallationPrompt -Message 'You can customize text to appear at the end of an install or remove it completely for unattended installations.' -ButtonRightText 'OK' -Icon Information -NoWait
+        # }
     }
     ElseIf ($deploymentType -ieq 'Uninstall') {
         ##*===============================================
@@ -231,10 +231,10 @@ Try {
         [String]$installPhase = 'Pre-Uninstallation'
 
         ## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-        Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
+        # Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
 
         ## Show Progress Message (with the default message)
-        Show-InstallationProgress
+        # Show-InstallationProgress
 
         ## <Perform Pre-Uninstallation tasks here>
 
@@ -271,10 +271,10 @@ Try {
         [String]$installPhase = 'Pre-Repair'
 
         ## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-        Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
+        # Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
 
         ## Show Progress Message (with the default message)
-        Show-InstallationProgress
+        # Show-InstallationProgress
 
         ## <Perform Pre-Repair tasks here>
 
