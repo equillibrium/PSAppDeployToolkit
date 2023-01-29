@@ -122,8 +122,9 @@ Try {
     [String]$installTitle = ''
     ##*===============================================
     ## Variables: TASS Speciefic
-    [bool]$TASS_IsChoco = $true # set $true to enable logic to use local TASS Choco repository
-    [bool]$TASS_SCCMAppUpdateAutomation = $true # automatically determine app name and vendor by unc path
+    [datetime]$TASSScriptStartTime = (Get-Date).AddSeconds(-5)
+    [bool]$TASS_IsChoco = $false # set $true to enable logic to use local TASS Choco repository
+    [bool]$TASS_SCCMAppUpdateAutomation = $false # automatically determine app name and vendor by unc path
     if ($TASS_SCCMAppUpdateAutomation) {
         [String]$appVendor = Split-Path -Leaf -Path (Split-Path -Parent -Path (Split-Path -Parent -Path $MyInvocation.MyCommand.Definition))
         [String]$appName = Split-Path -Leaf -Path (Split-Path -Parent -Path $MyInvocation.MyCommand.Definition)
@@ -131,12 +132,13 @@ Try {
     # Install or update Choco from Internet and config local repo
     if ($TASS_IsChoco) {
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        [string]$TASSChocoRepo = "\\msk-sccm-ss02\pkg\Chocolatey_Repo" # path to choco local repo
+        [String]$TASSChocoRepo = "\\msk-sccm-ss02\pkg\Chocolatey_Repo" # path to choco local repo
         Start-Process -Wait -NoNewWindow -FilePath "choco" -ArgumentList "sources add -n `"TASS`" -s `"$TASSChocoRepo`" -log-file=$("$env:ProgramData\logs\software"+"\ChocoConfig.log") -y -f" -PassThru -Verbose
-        [array]$TASSLocalRepoInfo = (choco find -s="TASS" $appName -r).split("|")
-        [string]$TASSChocoAppName = $TASSLocalRepoInfo[0] # proper app name for choco (use choco search to find out)
-        [string]$TASSChocoAppVersion = $TASSLocalRepoInfo[1] # proper app name for choco (use choco search to find out)
+        [Array]$TASSLocalRepoInfo = (choco find -s="TASS" $appName -r).split("|")
+        [String]$TASSChocoAppName = $TASSLocalRepoInfo[0] # proper app name for choco (use choco search to find out)
+        [String]$TASSChocoAppVersion = $TASSLocalRepoInfo[1] # proper app name for choco (use choco search to find out)
         [String]$appVersion = $TASSChocoAppVersion
+        [String]$TASSChocoPackageParams = ""
     }
 
 
@@ -225,8 +227,7 @@ Try {
 
         ## <Perform Installation tasks here>
         if ($TASS_IsChoco) {
-            $ChocoAppName = $appVendor+$appName
-            Execute-Process -Path "choco" -Parameters "install $TASSChocoAppName -s=TASS -log-file=$($configToolkitLogDir+ "\$ChocoAppName`_chocoInstall.log") -y" -PassThru -Verbose -CreateNoWindow
+            Execute-Process -Path "choco" -Parameters ("install $TASSChocoAppName"+$(if ($TASSChocoPackageParams){" --params `"$TASSChocoPackageParams`" "})+"-s=TASS -log-file=$($configToolkitLogDir+ "\$TASSChocoAppName`_chocoInstall.log") -y") -PassThru -Verbose -CreateNoWindow
         }
 
         ##*===============================================
@@ -270,7 +271,7 @@ Try {
 
         ## <Perform Uninstallation tasks here>
         if ($TASS_IsChoco) {
-            Execute-Process -Path "choco" -Parameters "uninstall $TASSChocoAppName -s=TASS -log-file=$($configToolkitLogDir+ "\$ChocoAppName`_chocoUninstall.log") -y" -PassThru -Verbose -CreateNoWindow
+            Execute-Process -Path "choco" -Parameters "uninstall $TASSChocoAppName -s=TASS -log-file=$($configToolkitLogDir+ "\$TASSChocoAppName`_chocoUninstall.log") -y" -PassThru -Verbose -CreateNoWindow
         }
 
 
