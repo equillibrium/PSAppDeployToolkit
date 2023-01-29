@@ -124,8 +124,15 @@ Try {
     ## Variables: TASS Speciefic
 	[datetime]$TASSScriptStartTime = (Get-Date).AddSeconds(-5)
     [bool]$TASS_IsChoco = $false # set $true to enable logic to use local TASS Choco repository
-    [string]$TASSChocoRepo = "\\msk-sccm-ss02\pkg\Chocolatey_Repo" # path to choco local repo
-    [string]$TASSChocoAppName = "$appName" # proper app name for choco (use choco search to find out)
+    # Install or update Choco from Internet and config local repo
+    if ($TASS_IsChoco) {
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+        [string]$TASSChocoRepo = "\\msk-sccm-ss02\pkg\Chocolatey_Repo" # path to choco local repo
+        Execute-Process -Path "choco" -Parameters "sources add -n `"TASS`" -s `"$TASSChocoRepo`" -log-file=$($configToolkitLogDir+"\ChocoConfig.log") -y -f" -CreateNoWindow -PassThru -Verbose
+        [array]$TASSLocalRepoInfo = (choco find -s="TASS" $appName -r).split("|")
+        [string]$TASSChocoAppName = $TASSLocalRepoInfo[0] # proper app name for choco (use choco search to find out)
+        [string]$TASSChocoAppVersion = $TASSLocalRepoInfo[1] # proper app name for choco (use choco search to find out)
+    }
 
 
     ##* Do not modify section below
@@ -195,11 +202,6 @@ Try {
         # Show-InstallationProgress
 
         ## <Perform Pre-Installation tasks here>
-        if ($TASS_IsChoco) {
-            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-            Execute-Process -Path "choco" -Parameters "sources add -n `"TASS`" -s `"$TASSChocoRepo`" -log-file=$($configToolkitLogDir+"\ChocoConfig.log") -y -f" -CreateNoWindow -PassThru -Verbose
-        }
-
 
         ##*===============================================
         ##* INSTALLATION
@@ -247,11 +249,6 @@ Try {
         # Show-InstallationProgress
 
         ## <Perform Pre-Uninstallation tasks here>
-        if ($TASS_IsChoco) {
-            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-            Execute-Process -Path "choco" -Parameters "sources add -n `"TASS`" -s `"$TASSChocoRepo`" -log-file=$($configToolkitLogDir+"\ChocoConfig.log") -y -f" -CreateNoWindow -PassThru -Verbose
-        }
-
 
         ##*===============================================
         ##* UNINSTALLATION
