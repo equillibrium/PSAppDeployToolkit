@@ -134,7 +134,7 @@ Try {
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
         [String]$TASSChocoRepo = "\\msk-sccm-ss02\pkg\Chocolatey_Repo" # path to choco local repo
         Start-Process -Wait -NoNewWindow -FilePath "choco" -ArgumentList "sources add -n `"TASS`" -s `"$TASSChocoRepo`" -log-file=$("$env:ProgramData\logs\software"+"\ChocoConfig.log") -y -f" -PassThru -Verbose
-        [Array]$TASSLocalRepoInfo = (choco find -s="TASS" $appName -r).split("|")
+        [Array]$TASSLocalRepoInfo = ((choco find -s="TASS" $appName -r) -split "`n" | Select-Object -Last 1).split("|")
         [String]$TASSChocoAppName = $TASSLocalRepoInfo[0] # proper app name for choco (use choco search to find out)
         [String]$TASSChocoAppVersion = $TASSLocalRepoInfo[1] # proper app name for choco (use choco search to find out)
         [String]$appVersion = $TASSChocoAppVersion
@@ -227,7 +227,7 @@ Try {
 
         ## <Perform Installation tasks here>
         if ($TASS_IsChoco) {
-            Execute-Process -Path "choco" -Parameters ("install $TASSChocoAppName"+$(if ($TASSChocoPackageParams){" --params `"$TASSChocoPackageParams`" "})+"-s=TASS -log-file=$($configToolkitLogDir+ "\$TASSChocoAppName`_chocoInstall.log") -y") -PassThru -Verbose -CreateNoWindow
+            Execute-Process -Path "choco" -Parameters ("install $TASSChocoAppName "+$(if ($TASSChocoPackageParams){"--params `"$TASSChocoPackageParams`" "})+"-s=TASS -log-file=$($configToolkitLogDir+ "\$TASSChocoAppName`_chocoInstall.log") -y") -PassThru -Verbose -CreateNoWindow
         }
 
         ##*===============================================
