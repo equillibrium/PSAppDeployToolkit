@@ -125,6 +125,7 @@ Try {
     [datetime]$TASSScriptStartTime = (Get-Date).AddSeconds(-5)
     [bool]$TASS_IsChoco = $false # set $true to enable logic to use local TASS Choco repository
     [bool]$TASS_SCCMAppUpdateAutomation = $false # automatically determine app name and vendor by unc path
+    [bool]$TASS_IsInnoSetup = $false # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
     if ($TASS_SCCMAppUpdateAutomation) {
         [String]$appVendor = Split-Path -Leaf -Path (Split-Path -Parent -Path (Split-Path -Parent -Path $MyInvocation.MyCommand.Definition))
         [String]$appName = Split-Path -Leaf -Path (Split-Path -Parent -Path $MyInvocation.MyCommand.Definition)
@@ -209,6 +210,9 @@ Try {
         # Show-InstallationProgress
 
         ## <Perform Pre-Installation tasks here>
+        if ($TASS_IsInnoSetup) {
+            $InnoSetupParameters = "/VERYSILENT /NORESTART /NOCANCEL /SUPPRESSMSGBOXES /SP- /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /LOG=$configToolkitLogDir\$($logName.Replace(".log","_InnoSetup.log"))"
+        }
 
         ##*===============================================
         ##* INSTALLATION
@@ -255,6 +259,10 @@ Try {
         # Show-InstallationProgress
 
         ## <Perform Pre-Uninstallation tasks here>
+        if ($TASS_IsInnoSetup) {
+            $InnoSetupParameters = "/VERYSILENT /NORESTART /NOCANCEL /SUPPRESSMSGBOXES /SP- /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /LOG=$configToolkitLogDir\$($logName.Replace(".log","_InnoSetup.log"))"
+        }
+
 
         ##*===============================================
         ##* UNINSTALLATION
