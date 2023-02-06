@@ -232,7 +232,7 @@ Try {
 
         ## <Perform Installation tasks here>
         if ($TASS_IsChoco) {
-            Execute-Process -Path "choco" -Parameters ("upgrade $TASSChocoAppName "+$(if ($TASSChocoPackageParams){"--params `"$TASSChocoPackageParams`" "})+"-s=TASS -log-file=`"$($configToolkitLogDir+ "\$TASSChocoAppName`_chocoInstall.log")`" -y") -PassThru -Verbose -CreateNoWindow
+            Execute-Process -Path "choco" -Parameters ("upgrade $TASSChocoAppName "+$(if ($TASSChocoPackageParams){"--params `"$TASSChocoPackageParams`" "})+"-force -s=TASS -log-file=`"$($configToolkitLogDir+ "\$TASSChocoAppName`_chocoInstall.log")`" -y") -PassThru -Verbose -CreateNoWindow
         }
 
         ##*===============================================
