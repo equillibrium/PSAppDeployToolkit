@@ -87,7 +87,7 @@ Param (
     [ValidateSet('Interactive', 'Silent', 'NonInteractive')]
     [String]$DeployMode = 'Interactive',
     [Parameter(Mandatory = $false)]
-    [switch]$AllowRebootPassThru = $false,
+    [switch]$AllowRebootPassThru = $true,
     [Parameter(Mandatory = $false)]
     [switch]$TerminalServerMode = $false,
     [Parameter(Mandatory = $false)]
@@ -205,7 +205,7 @@ Try {
         [String]$installPhase = 'Pre-Installation'
 
         ## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
-        # Show-InstallationWelcome -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
+        Show-InstallationWelcome -CheckDiskSpace -Silent
 
         ## Show Progress Message (with the default message)
         # Show-InstallationProgress
@@ -254,7 +254,7 @@ Try {
         [String]$installPhase = 'Pre-Uninstallation'
 
         ## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-        # Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
+        Show-InstallationWelcome -Silent -CloseApps $appName
 
         ## Show Progress Message (with the default message)
         # Show-InstallationProgress
@@ -343,7 +343,7 @@ Try {
     }
 
     # Invoke SCCM HW Inv Schedule to update App Inventory
-    Invoke-SCCMTask -ScheduleID HardwareInventory -Verbose | Write-Log
+    Invoke-SCCMTask -ScheduleID HardwareInventory -Verbose
 
     # Pull logs to SCCM Share if it's available
     $LogFileShare = "\\msk-sccm-ss02\logs\PSADT"
