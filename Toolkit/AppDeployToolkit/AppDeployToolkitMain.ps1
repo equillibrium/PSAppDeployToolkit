@@ -349,7 +349,10 @@ $GetAccountNameUsingSid = [ScriptBlock] {
 }
 [String]$LocalSystemNTAccount = & $GetAccountNameUsingSid 'LocalSystemSid'
 [String]$LocalUsersGroup = & $GetAccountNameUsingSid 'BuiltinUsersSid'
-[String]$LocalPowerUsersGroup = & $GetAccountNameUsingSid 'BuiltinPowerUsersSid'
+# Test if the current Windows is a Home edition
+If (!((Get-ComputerInfo -ErrorAction 'SilentlyContinue' | Select -Property WindowsProductName).WindowsProductName -like "*Home*")){
+    [string]$LocalPowerUsersGroup = & $GetAccountNameUsingSid 'BuiltinPowerUsersSid'
+}
 [String]$LocalAdministratorsGroup = & $GetAccountNameUsingSid 'BuiltinAdministratorsSid'
 #  Check if script is running in session zero
 If ($IsLocalSystemAccount -or $IsLocalServiceAccount -or $IsNetworkServiceAccount -or $IsServiceAccount) {
@@ -7324,6 +7327,10 @@ Logged in Username under which to run the process from. Default is: The active c
 
 Path to the file being executed.
 
+.PARAMETER TempPath
+
+Path to the temporary directory used to store the script to be executed as user. If using a user writable directory, ensure you select -RunLevel 'LeastPrivilege'.
+
 .PARAMETER Parameters
 
 Arguments to be passed to the file being executed.
@@ -7396,6 +7403,9 @@ https://psappdeploytoolkit.com
         [String]$Path,
         [Parameter(Mandatory = $false)]
         [ValidateNotNullorEmpty()]
+        [String]$TempPath,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullorEmpty()]
         [String]$Parameters = '',
         [Parameter(Mandatory = $false)]
         [Switch]$SecureParameters = $false,
@@ -7419,7 +7429,16 @@ https://psappdeploytoolkit.com
         ## Get the name of this function and write header
         [String]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
         Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
-        [String]$executeAsUserTempPath = Join-Path -Path $dirAppDeployTemp -ChildPath 'ExecuteAsUser'
+        
+        If ($null -ne $tempPath) {             
+            $executeAsUserTempPath = $tempPath
+            If (($tempPath -eq $loggedOnUserTempPath) -and ($RunLevel -eq "HighestPrivilege")) {
+                Write-Log -Message "WARNING: Using [${CmdletName}] with a user writable directory using the HighestPrivilege creates a security vulnerability. Please use -RunLevel 'LeastPrivilege' when using a user writable directoy." -Severity 'Warning'
+            }
+        }
+        Else {
+            [String]$executeAsUserTempPath = Join-Path -Path $dirAppDeployTemp -ChildPath 'ExecuteAsUser'
+        }   
     }
     Process {
         ## Initialize exit code variable
@@ -7612,7 +7631,7 @@ https://psappdeploytoolkit.com
             Write-Log -Message "Failed to trigger scheduled task [$schTaskName]." -Severity 3 -Source ${CmdletName}
             #  Delete Scheduled Task
             Write-Log -Message 'Deleting the scheduled task which did not trigger.' -Source ${CmdletName}
-            Execute-Process -Path $exeSchTasks -Parameters "/delete /tn $schTaskName /f" -WindowStyle 'Hidden' -CreateNoWindow -ExitOnProcessFailure $false
+            #Execute-Process -Path $exeSchTasks -Parameters "/delete /tn $schTaskName /f" -WindowStyle 'Hidden' -CreateNoWindow -ExitOnProcessFailure $false
             If (-not $ContinueOnError) {
                 Throw "Failed to trigger scheduled task [$schTaskName]."
             }
@@ -7665,7 +7684,7 @@ https://psappdeploytoolkit.com
         ## Delete scheduled task
         Try {
             Write-Log -Message "Deleting scheduled task [$schTaskName]." -Source ${CmdletName}
-            Execute-Process -Path $exeSchTasks -Parameters "/delete /tn $schTaskName /f" -WindowStyle 'Hidden' -CreateNoWindow -ErrorAction 'Stop'
+            #Execute-Process -Path $exeSchTasks -Parameters "/delete /tn $schTaskName /f" -WindowStyle 'Hidden' -CreateNoWindow -ErrorAction 'Stop'
         }
         Catch {
             Write-Log -Message "Failed to delete scheduled task [$schTaskName]. `r`n$(Resolve-Error)" -Severity 3 -Source ${CmdletName}
@@ -7673,12 +7692,12 @@ https://psappdeploytoolkit.com
 
         ## Remove the XML scheduled task file
         If (Test-Path -LiteralPath $xmlSchTaskFilePath -PathType 'Leaf') {
-            Remove-File -Path $xmlSchTaskFilePath
+            #Remove-File -Path $xmlSchTaskFilePath
         }
 
         ##  Remove the temporary folder
         If (Test-Path -LiteralPath $executeAsUserTempPath -PathType 'Container') {
-            Remove-Folder -Path $executeAsUserTempPath
+            #Remove-Folder -Path $executeAsUserTempPath
         }
     }
     End {
@@ -10545,7 +10564,8 @@ https://psappdeploytoolkit.com
             }
         }
         Else {
-            Write-Log -Message "Displaying toast notification with message [$BalloonTipText]." -Source ${CmdletName}
+            $toastAppID = $appDeployToolkitName
+            $toastAppDisplayName = $appDeployToolkitName            
             
             [scriptblock]$toastScriptBlock  = {
                 Param(
@@ -10555,33 +10575,52 @@ https://psappdeploytoolkit.com
                     [Parameter(Mandatory = $false, Position = 1)]
                     [ValidateNotNullorEmpty()]
                     [String]$BalloonTipTitle,                                 
+                    [Parameter(Mandatory = $false, Position = 2)]
+                    [ValidateNotNullorEmpty()]
+                    [String]$AppDeployLogoImage,
+                    [Parameter(Mandatory = $false, Position = 3)]
+                    [ValidateNotNullorEmpty()]
+                    [String]$toastAppID,
                     [Parameter(Mandatory = $false, Position = 4)]
                     [ValidateNotNullorEmpty()]
-                    [String]$AppDeployLogoImage
+                    [String]$toastAppDisplayName
                 )
             
                 # Check for required entries in registry for when using Powershell as application for the toast
                 # Register the AppID in the registry for use with the Action Center, if required
-                $regPathNotificationSettings = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings'
-                $toastAppId =  '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+                $regPathToastNotificationSettings = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings'
+                $regPathToastApp = 'Registry::HKEY_CURRENT_USER\Software\Classes\AppUserModelId'
 
                 # Create the registry entries if they don't exist
-                If (-not (Test-Path -Path "$regPathNotificationSettings\$toastAppId") ) {
-                    $null = New-Item -Path "$regPathNotificationSettings\$toastAppId" -Force
-                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -Value 1 -PropertyType 'DWORD'
-                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'Enabled' -Value 1 -PropertyType 'DWORD'
-                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'SoundFile' -PropertyType 'STRING'
+                If (-not (Test-Path -Path "$regPathToastNotificationSettings\$toastAppId")) {
+                    $null = New-Item -Path "$regPathToastNotificationSettings\$toastAppId" -Force
                 }
                 # Make sure the app used with the action center is enabled
-                If ((Get-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -ErrorAction 'SilentlyContinue').ShowInActionCenter -ne '1') {
-                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -Value 1 -PropertyType 'DWORD' -Force
+                If ((Get-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -ErrorAction 'SilentlyContinue').ShowInActionCenter -ne '1') {
+                    $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -Value 1 -PropertyType 'DWORD' -Force
                 }
-                If ((Get-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'Enabled' -ErrorAction 'SilentlyContinue').Enabled -ne '1') {
-                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'Enabled' -Value 1 -PropertyType 'DWORD' -Force
+                If ((Get-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'Enabled' -ErrorAction 'SilentlyContinue').Enabled -ne '1') {
+                    $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'Enabled' -Value 1 -PropertyType 'DWORD' -Force
                 }
-                If (!(Get-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'SoundFile' -ErrorAction 'SilentlyContinue')) {
-                    $null = New-ItemProperty -Path "$regPathNotificationSettings\$toastAppId" -Name 'SoundFile' -PropertyType 'STRING' -Force
+                If (!(Get-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'SoundFile' -ErrorAction 'SilentlyContinue')) {
+                    $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'SoundFile' -PropertyType 'STRING' -Force
                 }
+                # Create the registry entries if they don't exist
+                If (-not (Test-Path -Path "$regPathToastApp\$toastAppId")) {
+                    $null = New-Item -Path "$regPathToastApp\$toastAppId" -Force
+                }
+                If (!(Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'DisplayName' -ErrorAction 'SilentlyContinue')) {
+                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'DisplayName' -Value "$($toastAppDisplayName)" -PropertyType 'STRING' -Force
+                }
+                If ((Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'ShowInSettings' -ErrorAction 'SilentlyContinue').ShowInSettings -ne '0') {
+                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'ShowInSettings' -Value 0 -PropertyType 'DWORD' -Force
+                }
+                If (!(Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconUri' -ErrorAction 'SilentlyContinue')) {
+                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconUri' -Value $appDeployLogoImage -PropertyType 'ExpandString' -Force
+                }
+                If (!(Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconBackgroundColor' -ErrorAction 'SilentlyContinue')) {
+                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconBackgroundColor' -Value 0 -PropertyType 'ExpandString' -Force
+                }                
                 
                 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
                 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
@@ -10606,18 +10645,20 @@ https://psappdeploytoolkit.com
 
                 $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($toastAppId)
                 $notifier.Show($toastXml)
-  
+
             }
-            
-            If ( -not $IsAdmin) {
-                Invoke-Command -ScriptBlock $toastScriptBlock -ArgumentList $BalloonTipText, $BalloonTipTitle, $AppDeployLogoImage
+                
+            If ($ProcessNTAccount -eq $runAsActiveUser.NTAccount) {
+                Write-Log -Message "Displaying toast notification with message [$BalloonTipText]." -Source ${CmdletName}
+                Invoke-Command -ScriptBlock $toastScriptBlock -ArgumentList $BalloonTipText, $BalloonTipTitle, $AppDeployLogoImage, $toastAppID, $toastAppDisplayName
             }
             Else {
                 ## Invoke a separate PowerShell process as the current user passing the script block as a command and associated parameters to display the toast notification in the user context
-                Try {                
-                    $executeToastAsUserScript = "$configToolkitTempPath\$($appDeployToolkitName)-ToastNotification.ps1"
+                Try {   
+                    Write-Log -Message "Displaying toast notification with message [$BalloonTipText] using Execute-ProcessAsUser." -Source ${CmdletName}             
+                    $executeToastAsUserScript = "$loggedOnUserTempPath" + "$($appDeployToolkitName)-ToastNotification.ps1"
                     Set-Content -Path $executeToastAsUserScript -Value $toastScriptBlock -Force
-                    Execute-ProcessAsUser -Path "$PSHOME\powershell.exe" -Parameters "-ExecutionPolicy Bypass -NoProfile -NoLogo -WindowStyle Hidden -Command & { & `"$executeToastAsUserScript `'$BalloonTipText`' `'$BalloonTipTitle`' `'$AppDeployLogoImage`'`"; Exit `$LastExitCode }" -Wait
+                    Execute-ProcessAsUser -Path "$PSHOME\powershell.exe" -Parameters "-ExecutionPolicy Bypass -NoProfile -NoLogo -WindowStyle Hidden -Command & { & `"`'$executeToastAsUserScript`' `'$BalloonTipText`' `'$BalloonTipTitle`' `'$AppDeployLogoImage`' `'$toastAppID`' `'$toastAppDisplayName`'`"; Exit `$LastExitCode }" -TempPath $loggedOnUserTempPath -Wait -RunLevel 'LeastPrivilege'
                 }
                 Catch {
                 }
@@ -15714,6 +15755,24 @@ If (-not ([Management.Automation.PSTypeName]'PSADT.UiAutomation').Type) {
     }
 }
 
+[ScriptBlock]$GetLoggedOnUserTempPath = {
+    # When running in system context we can derive the native "C:\Users" base path from the Public environment variable
+    [String]$dirUserProfile = Split-path $envPublic -ErrorAction 'SilentlyContinue'
+    If ($null -ne $RunAsActiveUser.NTAccount) {
+        [String]$userProfileName = $RunAsActiveUser.UserName
+        If (Test-Path (Join-Path -Path $dirUserProfile -ChildPath $userProfileName -ErrorAction 'SilentlyContinue')) {
+            [String]$runasUserProfile = Join-Path -Path $dirUserProfile -ChildPath $userProfileName -ErrorAction 'SilentlyContinue'
+            [String]$loggedOnUserTempPath = Join-Path -Path $runasUserProfile -ChildPath (Join-Path -Path $appDeployToolkitName -ChildPath 'ExecuteAsUser')  
+            If (-not (Test-Path -LiteralPath $loggedOnUserTempPath -PathType 'Container' -ErrorAction 'SilentlyContinue')) {
+                $null = New-Item -Path $loggedOnUserTempPath -ItemType 'Directory' -Force -ErrorAction 'SilentlyContinue'
+            }            
+        }
+    }
+    Else {
+        [String]$loggedOnUserTempPath = Join-Path -Path $dirAppDeployTemp -ChildPath 'ExecuteAsUser'
+    }
+}
+
 ## Disable logging until log file details are available
 . $DisableScriptLogging
 
@@ -15989,6 +16048,9 @@ Write-Log -Message $scriptSeparator -Source $appDeployToolkitName
 
 ## Dot source ScriptBlock to get a list of all users logged on to the system (both local and RDP users), and discover session details for account executing script
 . $GetLoggedOnUserDetails
+
+## Dot source ScriptBlock to create temporary directory of logged on user
+. $GetLoggedOnUserTempPath
 
 ## Dot source ScriptBlock to load localized UI messages from config XML
 . $xmlLoadLocalizedUIMessages
