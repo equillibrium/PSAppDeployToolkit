@@ -93,7 +93,7 @@ Param (
     [Parameter(Mandatory = $false)]
     [switch]$DisableLogging = $false
 )
-cd (split-path -parent $MyInvocation.MyCommand.Definition)
+Set-Location (split-path -parent $MyInvocation.MyCommand.Definition)
 
 Try {
     ## Set the script execution policy for this process
@@ -136,6 +136,7 @@ Try {
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
         [String]$TASSChocoRepo = "\\msk-sccm-ss02\pkg\Chocolatey_Repo" # path to choco local repo
         Start-Process -Wait -NoNewWindow -FilePath "choco" -ArgumentList "sources add -n `"TASS`" -s `"$TASSChocoRepo`" -log-file=$("$env:ProgramData\logs\software"+"\ChocoConfig.log") -y -f" -PassThru -Verbose
+        Start-Process -Wait -NoNewWindow -FilePath "choco" -ArgumentList "upgrade chocolatey -s=`"TASS`" -log-file=$("$env:ProgramData\logs\software"+"\ChocoUpgrade.log") -y" -PassThru -Verbose
         [Array]$TASSLocalRepoInfo = $(try {((choco find -s="TASS" $appName -r) -split "`n" | Select-Object -Last 1).split("|")} catch {""})
         [String]$TASSChocoAppName = $TASSLocalRepoInfo[0] # proper app name for choco (use choco search to find out)
         [String]$TASSChocoAppVersion = $TASSLocalRepoInfo[1] # proper app name for choco (use choco search to find out)
