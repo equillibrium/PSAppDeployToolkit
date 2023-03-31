@@ -107,9 +107,9 @@ Param (
 [String]$appDeployMainScriptFriendlyName = 'App Deploy Toolkit Main'
 
 ## Variables: Script Info
-[Version]$appDeployMainScriptVersion = [Version]'3.9.2'
-[Version]$appDeployMainScriptMinimumConfigVersion = [Version]'3.9.0'
-[String]$appDeployMainScriptDate = '02/02/2023'
+[Version]$appDeployMainScriptVersion = [Version]'3.9.3'
+[Version]$appDeployMainScriptMinimumConfigVersion = [Version]'3.9.3'
+[String]$appDeployMainScriptDate = '25/03/2023'
 [Hashtable]$appDeployMainScriptParameters = $PSBoundParameters
 
 ## Variables: Datetime and Culture
@@ -350,9 +350,12 @@ $GetAccountNameUsingSid = [ScriptBlock] {
 [String]$LocalSystemNTAccount = & $GetAccountNameUsingSid 'LocalSystemSid'
 [String]$LocalUsersGroup = & $GetAccountNameUsingSid 'BuiltinUsersSid'
 # Test if the current Windows is a Home edition
-If (!((Get-ComputerInfo -ErrorAction 'SilentlyContinue' | Select -Property WindowsProductName).WindowsProductName -like "*Home*")){
-    [string]$LocalPowerUsersGroup = & $GetAccountNameUsingSid 'BuiltinPowerUsersSid'
+Try {
+    If (!((Get-WmiObject -Class Win32_OperatingSystem | Select -Expand Caption) -like "*Home*")){
+        [string]$LocalPowerUsersGroup = & $GetAccountNameUsingSid 'BuiltinPowerUsersSid'
+    }
 }
+Catch{}
 [String]$LocalAdministratorsGroup = & $GetAccountNameUsingSid 'BuiltinAdministratorsSid'
 #  Check if script is running in session zero
 If ($IsLocalSystemAccount -or $IsLocalServiceAccount -or $IsNetworkServiceAccount -or $IsServiceAccount) {
@@ -405,6 +408,11 @@ If (-not (Test-Path -LiteralPath $appDeployCustomTypesSourceCode -PathType 'Leaf
 [String]$configBannerLogoImageFileName = $xmlBannerIconOptions.LogoImage_Filename
 [String]$configBannerIconBannerName = $xmlBannerIconOptions.Banner_Filename
 [Int32]$appDeployLogoBannerMaxHeight = $xmlBannerIconOptions.Banner_MaxHeight
+
+# Get Toast Notification Options
+[Xml.XmlElement]$xmlToastOptions = $xmlConfig.Toast_Options
+[String]$configToastDisable = $xmlToastOptions.Toast_Disable
+[String]$configToastAppName = $xmlToastOptions.Toast_AppName
 
 [String]$appDeployLogoIcon = Join-Path -Path $scriptRoot -ChildPath $configBannerIconFileName
 [String]$appDeployLogoImage = Join-Path -Path $scriptRoot -ChildPath $configBannerLogoImageFileName
@@ -7430,7 +7438,7 @@ https://psappdeploytoolkit.com
         [String]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
         Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
         
-        If ($null -ne $tempPath) {             
+        If ((![string]::IsNullOrEmpty($tempPath))) {             
             $executeAsUserTempPath = $tempPath
             If (($tempPath -eq $loggedOnUserTempPath) -and ($RunLevel -eq "HighestPrivilege")) {
                 Write-Log -Message "WARNING: Using [${CmdletName}] with a user writable directory using the HighestPrivilege creates a security vulnerability. Please use -RunLevel 'LeastPrivilege' when using a user writable directoy." -Severity 'Warning'
@@ -10490,7 +10498,7 @@ https://psappdeploytoolkit.com
             }
         }
 
-        If ($envOSVersionMajor -lt 10) {
+        If (($envOSVersionMajor -lt 10) -or ($configToastDisable -eq $true)) {
             ## NoWait - Create the balloontip icon asynchronously
             If ($NoWait) {
                 Write-Log -Message "Displaying balloon tip notification asynchronously with message [$BalloonTipText]." -Source ${CmdletName}
@@ -10563,9 +10571,10 @@ https://psappdeploytoolkit.com
                 $script:notifyIcon.ShowBalloonTip($BalloonTipTime)
             }
         }
+        # Otherwise use toast notification
         Else {
             $toastAppID = $appDeployToolkitName
-            $toastAppDisplayName = $appDeployToolkitName            
+            $toastAppDisplayName = $configToastAppName
             
             [scriptblock]$toastScriptBlock  = {
                 Param(
@@ -10591,36 +10600,19 @@ https://psappdeploytoolkit.com
                 $regPathToastNotificationSettings = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings'
                 $regPathToastApp = 'Registry::HKEY_CURRENT_USER\Software\Classes\AppUserModelId'
 
-                # Create the registry entries if they don't exist
-                If (-not (Test-Path -Path "$regPathToastNotificationSettings\$toastAppId")) {
-                    $null = New-Item -Path "$regPathToastNotificationSettings\$toastAppId" -Force
-                }
+                # Create the registry entries            
+                $null = New-Item -Path "$regPathToastNotificationSettings\$toastAppId" -Force
                 # Make sure the app used with the action center is enabled
-                If ((Get-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -ErrorAction 'SilentlyContinue').ShowInActionCenter -ne '1') {
-                    $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -Value 1 -PropertyType 'DWORD' -Force
-                }
-                If ((Get-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'Enabled' -ErrorAction 'SilentlyContinue').Enabled -ne '1') {
-                    $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'Enabled' -Value 1 -PropertyType 'DWORD' -Force
-                }
-                If (!(Get-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'SoundFile' -ErrorAction 'SilentlyContinue')) {
-                    $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'SoundFile' -PropertyType 'STRING' -Force
-                }
-                # Create the registry entries if they don't exist
-                If (-not (Test-Path -Path "$regPathToastApp\$toastAppId")) {
-                    $null = New-Item -Path "$regPathToastApp\$toastAppId" -Force
-                }
-                If (!(Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'DisplayName' -ErrorAction 'SilentlyContinue')) {
-                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'DisplayName' -Value "$($toastAppDisplayName)" -PropertyType 'STRING' -Force
-                }
-                If ((Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'ShowInSettings' -ErrorAction 'SilentlyContinue').ShowInSettings -ne '0') {
-                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'ShowInSettings' -Value 0 -PropertyType 'DWORD' -Force
-                }
-                If (!(Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconUri' -ErrorAction 'SilentlyContinue')) {
-                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconUri' -Value $appDeployLogoImage -PropertyType 'ExpandString' -Force
-                }
-                If (!(Get-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconBackgroundColor' -ErrorAction 'SilentlyContinue')) {
-                    $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconBackgroundColor' -Value 0 -PropertyType 'ExpandString' -Force
-                }                
+                $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'ShowInActionCenter' -Value 1 -PropertyType 'DWORD' -Force
+                $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'Enabled' -Value 1 -PropertyType 'DWORD' -Force
+                $null = New-ItemProperty -Path "$regPathToastNotificationSettings\$toastAppId" -Name 'SoundFile' -PropertyType 'STRING' -Force
+                
+                # Create the registry entries           
+                $null = New-Item -Path "$regPathToastApp\$toastAppId" -Force
+                $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'DisplayName' -Value "$($toastAppDisplayName)" -PropertyType 'STRING' -Force
+                $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'ShowInSettings' -Value 0 -PropertyType 'DWORD' -Force
+                $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconUri' -Value $appDeployLogoImage -PropertyType 'ExpandString' -Force
+                $null = New-ItemProperty -Path "$regPathToastApp\$toastAppId" -Name 'IconBackgroundColor' -Value 0 -PropertyType 'ExpandString' -Force                               
                 
                 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
                 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
@@ -15272,7 +15264,7 @@ Returns a custom object with the following properties
 
 Get-PendingReboot
 
-Returns caustom object with following properties:
+Returns custom object with following properties:
 - ComputerName
 - LastBootUpTime
 - IsSystemRebootPending
