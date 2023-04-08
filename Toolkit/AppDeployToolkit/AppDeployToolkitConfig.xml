@@ -54,7 +54,7 @@
     <!--Toast Notification Options-->
     <Toast_Options>
         <Toast_Disable>False</Toast_Disable>
-        <Toast_AppName>PSAppDeployToolkit</Toast_AppName>
+        <Toast_AppName>TASS SoftwareCenter</Toast_AppName>
     </Toast_Options>
     <!--Toast Notification Options-->
         
