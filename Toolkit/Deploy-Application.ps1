@@ -344,7 +344,7 @@ Try {
     }
 
     # Invoke SCCM HW Inv Schedule to update App Inventory
-    Invoke-SCCMTask -ScheduleID HardwareInventory -Verbose
+    # Invoke-SCCMTask -ScheduleID HardwareInventory -Verbose
 
     # Pull logs to SCCM Share if it's available
     $LogFileShare = "\\msk-sccm-ss02\logs\PSADT"
@@ -356,7 +356,9 @@ Try {
         
         Write-Log -Message "Копирование логов в папку $LogsFileShareFolder`:"
 		$CopyLogs = (Get-ChildItem $configToolkitLogDir | Where-Object LastWriteTime -ge $TASSScriptStartTime).FullName
-        $CopyLogs | ForEach-Object {Copy-File -Path $_ -Destination $LogsFileShareFolder -Recurse -Verbose}
+        if ($CopyLogs) {
+            $CopyLogs | ForEach-Object {Copy-File -Path $_ -Destination $LogsFileShareFolder -Recurse -Verbose}
+        }
     }
 
 
