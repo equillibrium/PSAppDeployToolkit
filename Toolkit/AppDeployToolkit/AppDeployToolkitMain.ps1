@@ -109,7 +109,7 @@ Param (
 ## Variables: Script Info
 [Version]$appDeployMainScriptVersion = [Version]'3.9.3'
 [Version]$appDeployMainScriptMinimumConfigVersion = [Version]'3.9.3'
-[String]$appDeployMainScriptDate = '25/03/2023'
+[String]$appDeployMainScriptDate = '02/05/2023'
 [Hashtable]$appDeployMainScriptParameters = $PSBoundParameters
 
 ## Variables: Datetime and Culture
@@ -16186,6 +16186,11 @@ If ($usersLoggedOn) {
     # Check if user session is running under defaultuser0 account (Autopilot OOBE) or if application is installing during ESP and if so change deployment to run silently
     If ($RunAsActiveUser.NTAccount -like '*\defaultuser0' -and (((Get-Process -Name 'wwahost' -ErrorAction 'SilentlyContinue').count) -gt 0)) {
         Write-Log -Message "Autopilot OOBE user [$($CurrentLoggedOnUserSession.UserName)] or ESP process 'wwahost' detected, changing deployment mode to silent." -Source $appDeployToolkitExtName
+        $deployMode = 'Silent'
+    }
+
+    [Int]$defenderHideSysTray = Get-RegistryKey -Key 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender Security Center\Systray' -Value 'HideSystray'
+    If ($defenderHideSysTray -ne "1" -and ($null -eq (Get-Process -Name SecurityHealthSystray -ErrorAction SilentlyContinue))) {
         $deployMode = 'Silent'
     }
 
