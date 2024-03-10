@@ -79,7 +79,7 @@
 
     <!--MSI Options-->
     <MSI_Options>
-        <MSI_LoggingOptions>/L*v</MSI_LoggingOptions>
+        <MSI_LoggingOptions>/L*vx</MSI_LoggingOptions>
         <!-- Logging level used for MSI logging. -->
         <MSI_LogPath>$envProgramData\Logs\Software</MSI_LogPath>
         <!-- Log path used for MSI logging. -->
