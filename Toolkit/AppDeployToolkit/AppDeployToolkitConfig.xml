@@ -50,7 +50,7 @@
         <!-- Specify if log messages should be written to the console. -->
         <Toolkit_LogDoNotAppend>True</Toolkit_LogDoNotAppend>
 		<!-- Specify if an existing log file should not be appended to. -->
-        <Toolkit_UseRobocopy>True</Toolkit_UseRobocopy>
+        <Toolkit_UseRobocopy>False</Toolkit_UseRobocopy>
 		<!-- Specify if Robocopy should be used with the Copy-File function. -->
         <Toolkit_CachePath>$envProgramData\SoftwareCache</Toolkit_CachePath>
 		<!-- Specify the path for the cache folder --> 

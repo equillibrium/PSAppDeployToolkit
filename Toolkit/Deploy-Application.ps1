@@ -350,7 +350,7 @@ Try {
     $LogFileShare = "\\msk-sccm-ss02\logs\PSADT"
 
     if (Test-Connection -ComputerName "msk-sccm-ss02.corp.tass.ru" -Count 4 -ErrorAction SilentlyContinue) {
-        $LogsFileShareFolder = $LogFileShare+"\$env:COMPUTERNAME"
+        $LogsFileShareFolder = $LogFileShare+"\$env:COMPUTERNAME\"
 
         New-Folder -Path $LogFileShare -Verbose
         
