@@ -11,7 +11,7 @@ PSApppDeployToolkit - This script performs the installation or uninstallation of
 
 The script dot-sources the AppDeployToolkitMain.ps1 script which contains the logic and functions required to install or uninstall an application.
 
-PSApppDeployToolkit is licensed under the GNU LGPLv3 License - (C) 2024 PSAppDeployToolkit Team (Sean Lillis, Dan Cunningham and Muhammad Mashwani).
+PSApppDeployToolkit is licensed under the GNU LGPLv3 License - (C) 2023 PSAppDeployToolkit Team (Sean Lillis, Dan Cunningham and Muhammad Mashwani).
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the
 Free Software Foundation, either version 3 of the License, or any later version. This program is distributed in the hope that it will be useful, but
@@ -78,6 +78,7 @@ Toolkit Exit Code Ranges:
 https://psappdeploytoolkit.com
 #>
 
+
 [CmdletBinding()]
 Param (
     [Parameter(Mandatory = $false)]
@@ -87,62 +88,38 @@ Param (
     [ValidateSet('Interactive', 'Silent', 'NonInteractive')]
     [String]$DeployMode = 'Interactive',
     [Parameter(Mandatory = $false)]
-    [switch]$AllowRebootPassThru = $true,
+    [switch]$AllowRebootPassThru = $false,
     [Parameter(Mandatory = $false)]
     [switch]$TerminalServerMode = $false,
     [Parameter(Mandatory = $false)]
     [switch]$DisableLogging = $false
 )
-Set-Location (split-path -parent $MyInvocation.MyCommand.Definition)
 
 Try {
     ## Set the script execution policy for this process
     Try {
         Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop'
-    } Catch {
+    }
+    Catch {
     }
 
     ##*===============================================
     ##* VARIABLE DECLARATION
     ##*===============================================
     ## Variables: Application
-    [String]$appVendor = ''
-    [String]$appName = ''
-    [String]$appVersion = ''
-    [String]$appArch = ''
-    [String]$appLang = 'RU'
+    [String]$appVendor = 'Martin Prikryl'
+    [String]$appName = 'WinSCP'
+    [String]$appVersion = '6.3.2'
+    [String]$appArch = 'x64'
+    [String]$appLang = 'EN'
     [String]$appRevision = '01'
     [String]$appScriptVersion = '1.0.0'
-    [String]$appScriptDate = 'XX/XX/2023'
-    [String]$appScriptAuthor = '<familia_i>'
+    [String]$appScriptDate = '03/05/2024'
+    [String]$appScriptAuthor = 'PsAppDeployToolkit'
     ##*===============================================
     ## Variables: Install Titles (Only set here to override defaults set by the toolkit)
     [String]$installName = ''
     [String]$installTitle = ''
-    ##*===============================================
-    ## Variables: TASS Speciefic
-    [datetime]$TASSScriptStartTime = (Get-Date).AddSeconds(-5)
-    [bool]$TASS_IsChoco = $false # set $true to enable logic to use local TASS Choco repository
-    [bool]$TASS_SCCMAppUpdateAutomation = $false # automatically determine app name and vendor by unc path
-    [bool]$TASS_IsInnoSetup = $false # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
-
-    if ($TASS_SCCMAppUpdateAutomation) {
-        [String]$appVendor = Split-Path -Leaf -Path (Split-Path -Parent -Path (Split-Path -Parent -Path $MyInvocation.MyCommand.Definition))
-        [String]$appName = Split-Path -Leaf -Path (Split-Path -Parent -Path $MyInvocation.MyCommand.Definition)
-    }
-    # Install or update Choco from Internet and config local repo
-    if ($TASS_IsChoco) {
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        [String]$TASSChocoRepo = "\\msk-sccm-ss02\pkg\Chocolatey_Repo" # path to choco local repo
-        Start-Process -Wait -NoNewWindow -FilePath "choco" -ArgumentList "sources add -n `"TASS`" -s `"$TASSChocoRepo`" -log-file=$("$env:ProgramData\logs\software"+"\ChocoConfig.log") -y -f" -PassThru -Verbose
-        Start-Process -Wait -NoNewWindow -FilePath "choco" -ArgumentList "upgrade chocolatey -s=`"TASS`" -log-file=$("$env:ProgramData\logs\software"+"\ChocoUpgrade.log") -y" -PassThru -Verbose
-        [Array]$TASSLocalRepoInfo = $(try {((choco find -s="TASS" $appName -r) -split "`n" | Select-Object -Last 1).split("|")} catch {""})
-        [String]$TASSChocoAppName = $TASSLocalRepoInfo[0] # proper app name for choco (use choco search to find out)
-        [String]$TASSChocoAppVersion = $TASSLocalRepoInfo[1] # proper app name for choco (use choco search to find out)
-        [String]$appVersion = $TASSChocoAppVersion
-        [String]$TASSChocoPackageParams = ""
-    }
-
 
     ##* Do not modify section below
     #region DoNotModify
@@ -153,7 +130,7 @@ Try {
     ## Variables: Script
     [String]$deployAppScriptFriendlyName = 'Deploy Application'
     [Version]$deployAppScriptVersion = [Version]'3.10.1'
-    [String]$deployAppScriptDate = '05/03/2024'
+    [String]$deployAppScriptDate = '03/05/2024'
     [Hashtable]$deployAppScriptParameters = $PsBoundParameters
 
     ## Variables: Environment
@@ -204,16 +181,13 @@ Try {
         ##*===============================================
         [String]$installPhase = 'Pre-Installation'
 
-        ## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
-        Show-InstallationWelcome -CheckDiskSpace -Silent
+        ## Show Welcome Message, close WinSCP if required, allow up to 3 deferrals, and persist the prompt
+        Show-InstallationWelcome -CloseApps 'WinSCP=WinSCP' -AllowDeferCloseApps -DeferTimes 3 -PersistPrompt -MinimizeWindows $false
 
         ## Show Progress Message (with the default message)
-        # Show-InstallationProgress
+        Show-InstallationProgress
 
         ## <Perform Pre-Installation tasks here>
-        if ($TASS_IsInnoSetup) {
-            $InnoSetupParameters = "/VERYSILENT /NORESTART /NOCANCEL /SUPPRESSMSGBOXES /SP- /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /LOG=$configToolkitLogDir\$($logName.Replace(".log","_InnoSetup.log"))"
-        }
 
         ##*===============================================
         ##* INSTALLATION
@@ -231,9 +205,8 @@ Try {
         }
 
         ## <Perform Installation tasks here>
-        if ($TASS_IsChoco) {
-            Execute-Process -Path "choco" -Parameters ("upgrade $TASSChocoAppName "+$(if ($TASSChocoPackageParams){"--params `"$TASSChocoPackageParams`" "})+"-force -s=TASS -log-file=`"$($configToolkitLogDir+ "\$($TASSChocoAppName.replace(" ","_"))`_chocoInstall.log")`" -y") -PassThru -Verbose -CreateNoWindow
-        }
+
+        Execute-MSI -Action Install -Path 'WinSCP-6.3.2.msi'
 
         ##*===============================================
         ##* POST-INSTALLATION
@@ -242,10 +215,20 @@ Try {
 
         ## <Perform Post-Installation tasks here>
 
+        Remove-File -Path "$envCommonDesktop\WinSCP.lnk"
+
+        [scriptblock]$HKCURegistrySettings = {
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface' -Name 'CollectUsage' -Value 0 -Type DWord -SID $UserProfile.SID
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface\Updates' -Name 'Period' -Value 0 -Type DWord -SID $UserProfile.SID
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface\Updates' -Name 'BetaVersions' -Value 1 -Type DWord -SID $UserProfile.SID
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface\Updates' -Name 'ShowOnStartup' -Value 0 -Type DWord -SID $UserProfile.SID
+        }
+        Invoke-HKCURegistrySettingsForAllUsers -RegistrySettings $HKCURegistrySettings
+
         ## Display a message at the end of the install
-        # If (-not $useDefaultMsi) {
-        #    Show-InstallationPrompt -Message 'You can customize text to appear at the end of an install or remove it completely for unattended installations.' -ButtonRightText 'OK' -Icon Information -NoWait
-        # }
+        If (-not $useDefaultMsi) {
+            Show-InstallationPrompt -Message "$appName installation complete." -ButtonRightText 'OK' -Icon Information -NoWait
+        }
     }
     ElseIf ($deploymentType -ieq 'Uninstall') {
         ##*===============================================
@@ -253,17 +236,13 @@ Try {
         ##*===============================================
         [String]$installPhase = 'Pre-Uninstallation'
 
-        ## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-        Show-InstallationWelcome -Silent -CloseApps $appName
+        ## Show Welcome Message, close WinSCP silently if running
+        Show-InstallationWelcome -CloseApps 'WinSCP=WinSCP' -Silent
 
         ## Show Progress Message (with the default message)
-        # Show-InstallationProgress
+        Show-InstallationProgress
 
         ## <Perform Pre-Uninstallation tasks here>
-        if ($TASS_IsInnoSetup) {
-            $InnoSetupParameters = "/VERYSILENT /NORESTART /NOCANCEL /SUPPRESSMSGBOXES /SP- /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /LOG=$configToolkitLogDir\$($logName.Replace(".log","_InnoSetup.log"))"
-        }
-
 
         ##*===============================================
         ##* UNINSTALLATION
@@ -279,11 +258,8 @@ Try {
         }
 
         ## <Perform Uninstallation tasks here>
-        if ($TASS_IsChoco) {
-            Execute-Process -Path "choco" -Parameters "uninstall $TASSChocoAppName -s=TASS -log-file=$($configToolkitLogDir+ "\$($TASSChocoAppName.replace(" ","_"))`_chocoUninstall.log") -y" -PassThru -Verbose -CreateNoWindow
-        }
 
-
+        Execute-MSI -Action Uninstall -Path 'WinSCP-6.3.2.msi'
 
         ##*===============================================
         ##* POST-UNINSTALLATION
@@ -292,7 +268,6 @@ Try {
 
         ## <Perform Post-Uninstallation tasks here>
 
-
     }
     ElseIf ($deploymentType -ieq 'Repair') {
         ##*===============================================
@@ -300,11 +275,11 @@ Try {
         ##*===============================================
         [String]$installPhase = 'Pre-Repair'
 
-        ## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-        # Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
+        ## Show Welcome Message, close VLC with a 60 second countdown before automatically closing
+        Show-InstallationWelcome -CloseApps 'WinSCP=WinSCP' -Silent -CloseAppsCountdown 60
 
         ## Show Progress Message (with the default message)
-        # Show-InstallationProgress
+        Show-InstallationProgress
 
         ## <Perform Pre-Repair tasks here>
 
@@ -322,6 +297,8 @@ Try {
         }
         ## <Perform Repair tasks here>
 
+        Execute-MSI -Action Repair -Path 'WinSCP-6.3.2.msi' -RepairFromSource $true
+
         ##*===============================================
         ##* POST-REPAIR
         ##*===============================================
@@ -329,38 +306,17 @@ Try {
 
         ## <Perform Post-Repair tasks here>
 
+        Remove-File -Path "$envCommonDesktop\WinSCP.lnk"
 
-    }
-
-    ##*===============================================
-	##* TASS Speciefic Add-on - Post actions
-	##*===============================================
-
-	## Pull  last 25 Application Event Log entries that contains $appName in the message
-    if ($eventlog = (Get-EventLog -LogName Application -Newest 25 -Source msiinstaller | Where-Object {$_.Message -like "*$($appName.replace(" ","*"))*"})) {
-        Write-Log -Message "Последние 25 записей из Application EventLog:"
-        $eventlog.message | ForEach-Object { Write-Log $_ }
-    }
-
-    # Invoke SCCM HW Inv Schedule to update App Inventory
-    # Invoke-SCCMTask -ScheduleID HardwareInventory -Verbose
-
-    # Pull logs to SCCM Share if it's available
-    $LogFileShare = "\\msk-sccm-ss02\logs\PSADT"
-
-    if (Test-Connection -ComputerName "msk-sccm-ss02.corp.tass.ru" -Count 4 -ErrorAction SilentlyContinue) {
-        $LogsFileShareFolder = $LogFileShare+"\$env:COMPUTERNAME\"
-
-        New-Folder -Path $LogFileShare -Verbose
-        
-        Write-Log -Message "Копирование логов в папку $LogsFileShareFolder`:"
-		$CopyLogs = (Get-ChildItem $configToolkitLogDir | Where-Object LastWriteTime -ge $TASSScriptStartTime).FullName
-        if ($CopyLogs) {
-            $CopyLogs | ForEach-Object {Copy-File -Path $_ -Destination $LogsFileShareFolder -Recurse -Verbose}
+        [scriptblock]$HKCURegistrySettings = {
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface' -Name 'CollectUsage' -Value 0 -Type DWord -SID $UserProfile.SID
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface\Updates' -Name 'Period' -Value 0 -Type DWord -SID $UserProfile.SID
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface\Updates' -Name 'BetaVersions' -Value 1 -Type DWord -SID $UserProfile.SID
+            Set-RegistryKey -Key 'HKCU\Software\Martin Prikryl\WinSCP 2\Configuration\Interface\Updates' -Name 'ShowOnStartup' -Value 0 -Type DWord -SID $UserProfile.SID
         }
+        Invoke-HKCURegistrySettingsForAllUsers -RegistrySettings $HKCURegistrySettings
+
     }
-
-
     ##*===============================================
     ##* END SCRIPT BODY
     ##*===============================================
