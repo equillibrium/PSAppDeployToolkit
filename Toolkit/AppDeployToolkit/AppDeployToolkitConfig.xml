@@ -62,7 +62,7 @@
         <!-- Specify maximum file size limit for log file in megabytes (MB). -->
         <Toolkit_LogMaxHistory>10</Toolkit_LogMaxHistory>
         <!-- Specify maximum number of previous log files to retain. -->
-        <Toolkit_UseRobocopy>False</Toolkit_UseRobocopy>
+        <Toolkit_UseRobocopy>True</Toolkit_UseRobocopy>
         <!-- Specify if Robocopy should be used with the Copy-File function. -->
         <Toolkit_CachePath>$envProgramData\SoftwareCache</Toolkit_CachePath>
         <!-- Specify the path for the cache folder -->
