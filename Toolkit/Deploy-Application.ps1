@@ -98,6 +98,7 @@ Param (
     [String]$Password
 
 )
+
 Set-Location (split-path -parent $MyInvocation.MyCommand.Definition)
 
 Try {
