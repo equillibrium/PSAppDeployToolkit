@@ -91,7 +91,12 @@ Param (
     [Parameter(Mandatory = $false)]
     [switch]$TerminalServerMode = $false,
     [Parameter(Mandatory = $false)]
-    [switch]$DisableLogging = $false
+    [switch]$DisableLogging = $false,
+    [Parameter(Mandatory = $false)]
+    [String]$Login,
+    [Parameter(Mandatory = $false)]
+    [String]$Password
+
 )
 Set-Location (split-path -parent $MyInvocation.MyCommand.Definition)
 
