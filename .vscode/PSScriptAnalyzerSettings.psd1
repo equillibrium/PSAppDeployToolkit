@@ -1,15 +1,15 @@
-# PSAppDeployToolkit default rules for PSScriptAnalyser, to ensure compatibility with PowerSHell 3.0
+# PSAppDeployToolkit default rules for PSScriptAnalyser, to ensure compatibility with PowerShell 5.1
 @{
     Severity     = @(
         'Error',
         'Warning'
     );
     ExcludeRules = @(
-        'PSUseDeclaredVarsMoreThanAssigments'
+        'PSAlignAssignmentStatement'
     );
     Rules        = @{
-        PSUseCompatibleCmdlets = @{
-            Compatibility = @('desktop-3.0-windows')
-        };
-    }
+        'PSUseCompatibleCmdlets' = @{
+            'compatibility' = @('desktop-5.1.14393.206-windows')
+        }
+    };
 }

@@ -1,0 +1,112 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<!--https://devblogs.microsoft.com/powershell/depending-on-the-right-powershell-nuget-package-in-your-net-project/-->
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+		<RootNamespace>PSADT</RootNamespace>
+		<AssemblyName>PSADT</AssemblyName>
+		<NoWarn>$(NoWarn);CA1416;CS4014</NoWarn>
+		<UseWindowsForms>true</UseWindowsForms>
+
+		<AssemblyVersion>4.0.3.0</AssemblyVersion>
+		<FileVersion>4.0.3</FileVersion>
+		<InformationalVersion>4.0.3</InformationalVersion>
+		<ApplicationVersion>4.0.3</ApplicationVersion>
+		<Authors>PSAppDeployToolkit Team</Authors>
+		<Company>PSAppDeployToolkit Team</Company>
+		<Description>PSAppDeployToolkit Support Library</Description>
+		<Title>PSAppDeployToolkit Support Libray</Title>
+		<Copyright>Copyright © 2024 PSAppDeployToolkit Team. All rights reserved.</Copyright>
+		<PackageProjectUrl>https://psappdeploytoolkit.com/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/PSAppDeployToolkit/PSAppDeployToolkit</RepositoryUrl>
+		<ApplicationIcon>PsadtExec.ico</ApplicationIcon>
+		
+		<CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+		<TargetFrameworks>net462;net8.0-windows10.0.17763</TargetFrameworks>
+		<SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+		<LangVersion>latest</LangVersion>
+		<Deterministic>true</Deterministic>
+		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+		<Nullable>enable</Nullable>
+		
+		<GenerateDocumentationFile>False</GenerateDocumentationFile>
+		<SignAssembly>False</SignAssembly>
+		<PublishTrimmed>false</PublishTrimmed>
+		<Platforms>AnyCPU</Platforms>
+
+		<UseWPF>true</UseWPF>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	  <DebugSymbols>true</DebugSymbols>
+	  <DebugType>full</DebugType>
+	  <WarningLevel>3</WarningLevel>
+	  <Optimize>false</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	  <DebugSymbols>false</DebugSymbols>
+	  <DebugType>none</DebugType>
+	  <WarningLevel>3</WarningLevel>
+	  <Optimize>true</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows10.0.17763'">
+		<DefineConstants>$(DefineConstants);CoreCLR</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net462'">
+		<DefineConstants>$(DefineConstants);NETFramework</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net462|AnyCPU'">
+	  <DebugSymbols>true</DebugSymbols>
+	  <DebugType>full</DebugType>
+	  <WarningLevel>3</WarningLevel>
+	  <Optimize>false</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows10.0.17763|AnyCPU'">
+	  <DebugSymbols>true</DebugSymbols>
+	  <DebugType>full</DebugType>
+	  <WarningLevel>3</WarningLevel>
+	  <Optimize>false</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net462|AnyCPU'">
+	  <DebugSymbols>false</DebugSymbols>
+	  <DebugType>none</DebugType>
+	  <WarningLevel>3</WarningLevel>
+	  <Optimize>true</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-windows10.0.17763|AnyCPU'">
+	  <DebugSymbols>false</DebugSymbols>
+	  <DebugType>none</DebugType>
+	  <WarningLevel>3</WarningLevel>
+	  <Optimize>true</Optimize>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="LINQ\**" />
+	  <EmbeddedResource Remove="LINQ\**" />
+	  <None Remove="LINQ\**" />
+	  <Page Remove="LINQ\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="PsadtExec.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="System.Management.Automation" Version="7.4.*" Condition="'$(TargetFramework)' == 'net8.0-windows10.0.17763'" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="System.Management.Automation" Condition="'$(TargetFramework)' == 'net462'">
+			<HintPath>C:\Windows\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation\v4.0_3.0.0.0__31bf3856ad364e35\System.Management.Automation.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+
+</Project>
